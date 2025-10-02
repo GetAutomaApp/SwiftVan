@@ -201,7 +201,6 @@ public class Text: Element {
     }
 }
 
-// TODO: IMPLEMENT
 public class Condition: Element {
     public let name = "div"
     public let refId: UUID = UUID()
