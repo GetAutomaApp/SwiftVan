@@ -1,0 +1,33 @@
+{
+  "name": "base",
+  "version": "1.0.0",
+  "description": "Base Template for Automa",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon",
+    "build:van:example": "swift package --swift-sdk 6.1-RELEASE-wasm32-unknown-wasi js --use-cdn --product SwiftVanExample -c debug",
+    "config": "./.dotfiles/config.sh",
+    "install:swiftlint": "brew install swiftlint",
+    "install:swiftformat": "brew install swiftformat",
+    "install:all": "npx npm-run-all --sequential install:swiftlint install:swiftformat config",
+    "format": "swiftformat .",
+    "lint": "swiftlint --config=.swiftlint.yml .",
+    "update:submodules": "git submodule foreach --recursive 'branch=$(git remote show origin | awk \"/HEAD branch/ {print \\$NF}\"); git checkout $branch && git pull origin $branch' && CHANGED=$(git status --porcelain | grep '^ M \\.dotfiles' || true) && if [ -n \"$CHANGED\" ]; then npm run config; fi && git add -A && git commit -m \"chore: update submodules\" || echo 'No changes to commit'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GetAutomaApp/Base.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/GetAutomaApp/Base/issues"
+  },
+  "homepage": "https://github.com/GetAutomaApp/Base#readme",
+  "devDependencies": {
+    "nodemon": "^3.1.10",
+    "npm-run-all": "^4.1.5",
+    "serve": "^14.2.5"
+  }
+}

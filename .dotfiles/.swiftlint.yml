@@ -1,0 +1,132 @@
+# This file shouldn't exceed 100 lines. The base swiftlint file is extremely opinionated
+# Any sensible overrides should be provided as override swiftlint files in `extra_args`
+
+disabled_rules:
+  - trailing_whitespace
+  - trailing_comma
+  - nesting
+  - opening_brace
+
+opt_in_rules:
+  - empty_count
+  - force_unwrapping
+  - missing_docs
+  - file_name
+  - fallthrough
+  - identical_operands
+  - pattern_matching_keywords
+  - redundant_nil_coalescing
+  - trailing_closure
+  - unneeded_parentheses_in_closure_argument
+  - vertical_parameter_alignment_on_call
+  - closure_spacing
+  - attributes
+  - closure_end_indentation
+  - async_without_await
+  - closure_body_length
+  - collection_alignment
+  - comma_inheritance
+  - contains_over_filter_count
+  - contains_over_filter_is_empty
+  - contains_over_first_not_nil
+  - contains_over_range_nil_comparison
+  - direct_return
+  - discouraged_none_name
+  - explicit_acl
+  - explicit_init
+  - explicit_top_level_acl
+  - local_doc_comment
+  - modifier_order
+  - multiline_arguments
+  - multiline_arguments_brackets
+  - multiline_function_chains
+  - multiline_literal_brackets
+  - multiline_parameters
+  - multiline_parameters_brackets
+  - number_separator
+  - operator_usage_whitespace
+  - prefer_key_path
+  - prefer_self_in_static_references
+  - prefer_self_type_over_type_of_self
+  - reduce_into
+  - redundant_self_in_closure
+  - required_deinit
+  - return_value_from_void_function
+  - shorthand_argument
+  - shorthand_optional_binding
+  - sorted_enum_cases
+  - sorted_imports
+  - static_operator
+  - toggle_bool
+  - unused_parameter
+
+excluded:
+  - "**/Package.swift" # Package.swift always has `explicit_acl` errors
+  - "**/node_modules" # Exclude Node Modules (Performance Optimisation)
+  - "**/.build" # Exclude all .build directories
+  - "**/.index-build" # Exclude all .index-build directories
+  - "**/Carthage" # Exclude Carthage build directory
+  - "**/Pods" # Exclude Pods directory
+  - "**/DerivedData" # Exclude DerivedData directory
+  - "**/*.xcodeproj" # Exclude Xcode project files
+  - "**/*.xcworkspace" # Exclude Xcode workspace files
+  - "**/*.swiftmodule" # Exclude Swift module files
+  - "**/*.swiftinterface" # Exclude Swift interface files
+  - "**/Shared" # Exclude shared assets
+  - "**/Sources/Assets/Fonts" # Exclude fonts
+
+identifier_name:
+  min_length:
+    error: 3
+  excluded:
+    - id
+    - vm
+    - dm
+    - v1
+    - v2
+    - ip
+
+cyclomatic_complexity:
+  ignores_case_statements: true
+
+type_body_length:
+  warning: 500
+  error: 500
+
+type_name:
+  max_length:
+    warning: 50
+
+function_body_length:
+  warning: 100
+  error: 100
+
+closure_body_length:
+  warning: 100
+  error: 100
+
+file_length:
+  error: 500
+  warning: 500
+  ignore_comment_only_lines: true
+
+file_name:
+  excluded:
+    - "entrypoint.swift" # Vapor projects entrypoints
+    - "configure.swift" # Vapor projects global configuration
+    - "helper.swift" # TODO: Refactor code and rename so that file matches a type in file
+    - "helpers.swift" # TODO: Refactor code and rename so that file matches a type in file
+    - "Helpers.swift" # TODO: Refactor code and rename so that file matches a type in file
+    - "Errors.swift" # TODO: Refactor code and rename so that file matches a type in file
+    - "Fonts.swift" # Generated fonts for front-end
+    - "Initialization.swift" # TODO: Refactor to `FoundationExtensions.swift`,do same for extensions of other packages
+    - "Tokens.swift" # Front-end design tokens
+  prefix_pattern: ".*/"
+  suffix_pattern: "Extensions"
+
+generic_type_name:
+  max_length:
+    warning: 35
+    error: 35
+
+reporter: github-actions-logging
