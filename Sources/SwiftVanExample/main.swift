@@ -9,7 +9,6 @@ import Foundation
 
 public enum RendererContext {
     nonisolated(unsafe) public static var current: (any Renderer)?
-    // only gets set when we're building or updating conditionals
     nonisolated(unsafe) public static var currentBuildingElement: Element?
 }
 
@@ -28,7 +27,7 @@ struct ArrayBuilder<T> {
     static func buildArray(_ components: [[T]]) -> [T] { components.flatMap { $0 } }
 }
 
-typealias HtmlBuilder = ArrayBuilder<AnyElement>
+typealias ElementBuilder = ArrayBuilder<AnyElement>
 
 public typealias StateSubscribers<T> = [UUID: (UUID, T) -> Void]
 public typealias EmptyStateSubscribers = [UUID: () -> Void]
@@ -53,12 +52,6 @@ public final class State<T: CustomStringConvertible>: AnyState {
             notify()
         }
         get {
-            // do we need rebuild on the entire project level (deadlock state until everythig is done building)
-            // or do we just need it on a per element basis?
-            // if we only need it on a per element basis does the element itself need to know its being subscribed to?
-            // because if state knows about the element in the list of subscribers we can just call update
-            // when we trigger an update & re-render we need to make sure that all states div cares about (if-else / any state) doesn't re-evaluate again, basically if we kick off a state, and we kick off another re-render we need to skip
-            // do we need to have "old-value" implementation to do comparisons?
             guard var currentEl = RendererContext.currentBuildingElement else {
                 return _value
             }
@@ -156,7 +149,6 @@ public extension Element {
         print("is different \(isDifferent)")
         print("previous child refs \(previousChildrenRefs)")
         print("previous child refs \(newChildrenRef)")
-
         
         if isDifferent {
             for child in previousChildren {
@@ -170,13 +162,13 @@ public extension Element {
     }
     
     @discardableResult
-    func children(@HtmlBuilder _ content: () -> [AnyElement]) -> [AnyElement] {
+    func children(@ElementBuilder _ content: () -> [AnyElement]) -> [AnyElement] {
         print("building \(name)")
         let previous = RendererContext.currentBuildingElement
         RendererContext.currentBuildingElement = self    // set current el as parent dep
         let children = content()         // create children
         if let child = children[0] as? Text {
-            print("\(name): children in children func \((children[0] as! Text).text)")
+            print("\(name): children in children func \((child).text)")
         } else {
             print("\(name): children in children func is \(children[0].name)")
         }
@@ -192,8 +184,8 @@ public class Div: Element {
     public var stateSubscribers: [UUID: AnyState] = [:]
     public var children: [AnyElement] = []
     private let content: () -> [AnyElement]
-    
-    public init(@HtmlBuilder _ content: @escaping () -> [AnyElement]) {
+
+    public init(@ElementBuilder _ content: @escaping () -> [AnyElement]) {
         self.content = content
         self.children = children(content)
     }
@@ -210,7 +202,7 @@ public class Span: Element {
     public var children: [AnyElement] = []
     private let content: () -> [AnyElement]
     
-    public init(@HtmlBuilder _ content: @escaping () -> [AnyElement]) {
+    public init(@ElementBuilder _ content: @escaping () -> [AnyElement]) {
         self.content = content
         self.children = children(content)
     }
@@ -229,7 +221,7 @@ public class Button: Element {
     private let content: () -> [AnyElement]
     let onClick: () -> Void
     
-    public init(@HtmlBuilder _ content: @escaping () -> [AnyElement], onClick: @escaping () -> Void) {
+    public init(@ElementBuilder _ content: @escaping () -> [AnyElement], onClick: @escaping () -> Void) {
         self.content = content
         self.onClick = onClick
         self.children = children(content)
@@ -239,69 +231,6 @@ public class Button: Element {
         self.children = children(content)
     }
 }
-
-
-//public struct InterpolatedStateText: ExpressibleByStringLiteral, ExpressibleByStringInterpolation {
-//    
-//    public enum InterpolationType {
-//        case string(String)
-//        case state(AnyState)
-//    }
-//    
-//    public struct StringInterpolation: StringInterpolationProtocol {
-//        var indexes: [InterpolationType] = []
-//        
-//        public init(literalCapacity: Int, interpolationCount: Int) {
-//            indexes.reserveCapacity(literalCapacity + interpolationCount)
-//        }
-//        
-//        mutating public func appendLiteral(_ literal: String) {
-//            indexes.append(.string(literal))
-//        }
-//        
-//        mutating public func appendInterpolation(_ value: AnyState) {
-//            indexes.append(.state(value))
-//        }
-//    }
-//    
-//    private let indexes: [InterpolationType]
-//    
-//    public init(stringLiteral value: String) {
-//        self.indexes = [.string(value)]
-//    }
-//    
-//    public init(stringInterpolation: StringInterpolation) {
-//        print("init w/ interp")
-//        self.indexes = stringInterpolation.indexes
-//        print("done init w/ interp")
-//    }
-//    
-//    public func subscribers() -> [AnyState] {
-//        return indexes.compactMap { type in
-//            switch type {
-//            case .state(let val):
-//                return val
-//            case .string:
-//                return nil
-//            }
-//        }
-//    }
-//    
-//    public func toString() -> String {
-//        var string = ""
-//        
-//        for index in indexes {
-//            switch index {
-//            case .string(let val):
-//                string += val
-//            case .state(let val):
-//                string += val.stringValue
-//            }
-//        }
-//        
-//        return string
-//    }
-//}
 
 public class Text: Element {
     public let name = "text"
@@ -317,71 +246,6 @@ public class Text: Element {
     
     public func reevaluate() {}
 }
-
-//public class Condition: Element {
-//    public let name = "div"
-//    public let refId: UUID = UUID()
-//    public var stateSubscribers: [UUID : AnyState] = [:]
-//    public var children: [AnyElement] = []
-//    
-//    private let condition: () -> Bool
-//    private let content: () -> [AnyElement]
-//    
-//    private var isMounted: Bool = false
-//    
-//    public init(
-//        condition: @escaping () -> Bool,
-//        states: [AnyState],
-//        @HtmlBuilder content: @escaping () -> [any Element]
-//    ) {
-//        self.condition = condition
-//        self.content = content
-//        
-//        for state in states {
-//            let stateId = UUID()
-//            stateSubscribers[stateId] = state
-//            state.subscribe(stateId) {
-//                self.reevaluate()
-//            }
-//        }
-//        
-//        reevaluate(initial: true)
-//    }
-//    
-//    private func reevaluate(initial: Bool = false) {
-//        print("re evaluating")
-//        let shouldMount = condition()
-//        
-//        if shouldMount && initial {
-//            children = content()
-//            isMounted = true
-//            return
-//        }
-//        
-//        if !shouldMount && initial {
-//            return
-//        }
-//        
-//        guard let renderer = RendererContext.current else { return }
-//        
-//        if shouldMount && !isMounted {
-//            children = content()
-//            for child in children {
-//                renderer.mountElement(child, parentId: self.refId)
-//            }
-//            isMounted = true
-//        }
-//        
-//        if !shouldMount && isMounted {
-//            for child in children {
-//                child.unmount()
-//                renderer.unmountElement(child.refId)
-//            }
-//            children = []
-//            isMounted = false
-//        }
-//    }
-//}
 
 // MARK: - Renderer
 public protocol Renderer {
@@ -497,17 +361,16 @@ let state2 = State("true")
 let state3 = State([0])
 let state4 = State(User(name: "Simon", lastName: "Ferns"))
 
+// todo create a "Component" protocol to make this a bit easier to manage
 func UserComponent(user: User) -> AnyElement {
-    return Span {
-        Text("=== User Profile ===")
-        Text("Name: \(user.name)")
-        Text("Last Name: \(user.lastName)")
-        Text("=== User Profile ===")
-    }
+    return
+        Span {
+            Text("=== User Profile ===")
+            Text("Name: \(user.name)")
+            Text("Last Name: \(user.lastName)")
+            Text("=== User Profile ===")
+        }
 }
-
-// TODO: derived state
-//let derivedState = DerivedState({state.value + 1}, [state])
 
 let ui = Div {
     Button {
@@ -570,14 +433,3 @@ let ui = Div {
 
 let renderer = DomRenderer(root: ui)
 renderer.mount()
-
-//// TODO: Create GlobalRenderer context so that we can call unmount from the element protocol
-//// TODO: Test it by manually exposing the text id to global variable, then call unmount on it see what happens
-//
-//let intervalClosure = JSClosure { _ in
-//    state.value += 1
-//    print(state.value)
-//    return .undefined
-//}
-//
-//_ = JSObject.global.setInterval!(intervalClosure, 3000)
