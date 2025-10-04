@@ -160,7 +160,7 @@ public extension Element {
         
         if isDifferent {
             for child in previousChildren {
-                print("unmounting")
+                print("unmounting \(child.name)")
                 child.unmount()
             }
             
@@ -227,9 +227,11 @@ public class Button: Element {
     public var stateSubscribers: [UUID: AnyState] = [:]
     public var children: [AnyElement] = []
     private let content: () -> [AnyElement]
+    let onClick: () -> Void
     
-    public init(@HtmlBuilder _ content: @escaping () -> [AnyElement]) {
+    public init(@HtmlBuilder _ content: @escaping () -> [AnyElement], onClick: @escaping () -> Void) {
         self.content = content
+        self.onClick = onClick
         self.children = children(content)
     }
     
@@ -431,6 +433,14 @@ public class DomRenderer: Renderer {
             node.innerText = textNode.text.jsValue
         }
         
+        if let buttonNode = element as? Button {
+            let clickHandler = JSClosure { _ in
+                buttonNode.onClick()
+                return .undefined
+            }
+            node.onclick = clickHandler.jsValue
+        }
+        
         print("children for \(element.name) \(element.children)")
         for child in element.children {
             mountElement(child, into: node)
@@ -473,41 +483,101 @@ public class DomRenderer: Renderer {
     }
 }
 
-
+struct User: CustomStringConvertible {
+    var name: String
+    var lastName: String
+    
+    var description: String {
+        "\(name) \(lastName)"
+    }
+}
 
 let state = State(0)
+let state2 = State("true")
+let state3 = State([0])
+let state4 = State(User(name: "Simon", lastName: "Ferns"))
+
+func UserComponent(user: User) -> AnyElement {
+    return Span {
+        Text("=== User Profile ===")
+        Text("Name: \(user.name)")
+        Text("Last Name: \(user.lastName)")
+        Text("=== User Profile ===")
+    }
+}
 
 // TODO: derived state
 //let derivedState = DerivedState({state.value + 1}, [state])
 
 let ui = Div {
-//    Condition(condition: {state.value % 2 == 0}, states: [state]) {
-//        Text("Value is Even")
-//    }
-//    Condition(condition: {state.value % 2 != 0}, states: [state]) {
-//        Text("Value is Odd")
-//    }
-//    if state.value % 2 == 0 {
-//       Text("Value is Even")
-//    } else {
-//       Text("Value is Odd")
-//    }
-    // will this work or do we need to have state more dynamic?kjkj
+    Button {
+        Text("Increment + 1")
+    } onClick: {
+        print("set state1 in button")
+        state.value += 1
+        print("set state1 in button done")
+        
+        state3.value.append(state.value)
+        
+        state4.value.name = [
+            "Pete",
+            "John",
+            "Josh",
+            "Adam",
+            "William",
+            "Anonymous"
+        ].randomElement()!
+        
+        if (state.value % 2 == 0) { state2.value = "true" }
+        if (state.value % 3 != 0) { state2.value = "false" }
+        if (state.value > 10) { state2.value = "some value here"}
+    }
+    
     Span {
         Text("Count Is \(state.value)")
+        
+        if state.value % 2 == 0 {
+            Text("Value Is Even")
+        } else {
+            Text("Value is Odd")
+        }
+        
+        switch (state2.value) {
+        case "true":
+            Text("State 2 is True")
+        case "false":
+            Text("State 2 is False")
+        default:
+            Text("State 2 is \(state2.value)")
+        }
+    }
+    
+    
+    Div {
+        UserComponent(user: state4.value)
+    }
+    
+    Div {
+        for value in state3.value {
+            Text("- List Value Here \(value)")
+        }
+    }
+    
+    Div {
+        Text("Don't Be Updated")
     }
 }
 
 let renderer = DomRenderer(root: ui)
 renderer.mount()
 
-// TODO: Create GlobalRenderer context so that we can call unmount from the element protocol
-// TODO: Test it by manually exposing the text id to global variable, then call unmount on it see what happens
-
-let intervalClosure = JSClosure { _ in
-    state.value += 1
-    print(state.value)
-    return .undefined
-}
-
-_ = JSObject.global.setInterval!(intervalClosure, 3000)
+//// TODO: Create GlobalRenderer context so that we can call unmount from the element protocol
+//// TODO: Test it by manually exposing the text id to global variable, then call unmount on it see what happens
+//
+//let intervalClosure = JSClosure { _ in
+//    state.value += 1
+//    print(state.value)
+//    return .undefined
+//}
+//
+//_ = JSObject.global.setInterval!(intervalClosure, 3000)
