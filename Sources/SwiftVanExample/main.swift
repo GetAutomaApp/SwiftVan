@@ -29,6 +29,40 @@ struct ArrayBuilder<T> {
 
 typealias ElementBuilder = ArrayBuilder<AnyElement>
 
+public extension Dictionary where Key == String {
+    func string(_ key: String) -> String? {
+        self[key] as? String
+    }
+    
+    func int(_ key: String) -> Int? {
+        self[key] as? Int
+    }
+    
+    func double(_ key: String) -> Double? {
+        self[key] as? Double
+    }
+    
+    func bool(_ key: String) -> Bool? {
+        self[key] as? Bool
+    }
+    
+    func array(_ key: String) -> [Any]? {
+        self[key] as? [Any]
+    }
+    
+    func dictionary(_ key: String) -> [String: Any]? {
+        self[key] as? [String: Any]
+    }
+    
+    func function(_ key: String) -> (() -> Void)? {
+        self[key] as? (() -> Void)
+    }
+}
+
+public typealias DictValue = [String: Any]
+
+
+
 public typealias StateSubscribers<T> = [UUID: (UUID, T) -> Void]
 public typealias EmptyStateSubscribers = [UUID: () -> Void]
 
@@ -117,10 +151,12 @@ public protocol Element {
     var name: String { get }
     var refId: UUID { get }
     var stateSubscribers: [UUID: AnyState] { get set }
-    var children: [AnyElement] { get }
-    
+    var children: [AnyElement] { get set }
+    var attributes: () -> DictValue { get set }
+    var _attributes: DictValue { get set }
+    var content: () -> [AnyElement] { get set }
+
     func unmount() -> Void
-    func reevaluate() -> Void
 }
 
 public extension Element {
@@ -137,11 +173,13 @@ public extension Element {
         }
     }
     
-    func update() {
+    mutating func update() {
         let previousChildren = children
         let previousChildrenRefs = previousChildren.compactMap(\.refId)
         
-        reevaluate()
+        let (attributes, children) = children()
+        self._attributes = attributes
+        self.children = children
         
         let newChildrenRef = children.compactMap(\.refId)
         let isDifferent = previousChildrenRefs != newChildrenRef || previousChildren.count != children.count
@@ -161,54 +199,67 @@ public extension Element {
         
     }
     
-    @discardableResult
-    func children(@ElementBuilder _ content: () -> [AnyElement]) -> [AnyElement] {
+    func children() -> (
+        attributes: DictValue,
+        children: [AnyElement]
+    ) {
         print("building \(name)")
         let previous = RendererContext.currentBuildingElement
         RendererContext.currentBuildingElement = self    // set current el as parent dep
         let children = content()         // create children
-        if let child = children[0] as? Text {
-            print("\(name): children in children func \((child).text)")
+        let attributes = attributes()
+        if children.isEmpty {
+            print("\(name): children in children func is empty")
+        } else if let firstText = children[0] as? Text {
+            print("\(name): children in children func Text -> \(firstText.text)")
         } else {
             print("\(name): children in children func is \(children[0].name)")
         }
-        RendererContext.currentBuildingElement = previous // now that we're out of the struct out
+        RendererContext.currentBuildingElement = previous // restore previous
         print("done building \(name)")
-        return children
+        return (attributes, children)
     }
 }
 
 public class Div: Element {
+
     public let name = "div"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
     public var children: [AnyElement] = []
-    private let content: () -> [AnyElement]
+    public var content: () -> [AnyElement]
+    public var attributes: () -> DictValue
+    public var _attributes: DictValue = [:]
 
-    public init(@ElementBuilder _ content: @escaping () -> [AnyElement]) {
+
+    public init(attributes: @escaping () -> DictValue = {[:]}, @ElementBuilder _ content: @escaping () -> [AnyElement]) {
         self.content = content
-        self.children = children(content)
-    }
-    
-    public func reevaluate() {
-        self.children = children(content)
+        self.attributes = attributes
+        let (attributes, children) = children()
+        self._attributes = attributes
+        self.children = children
     }
 }
 
 public class Span: Element {
+
     public let name = "span"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
     public var children: [AnyElement] = []
-    private let content: () -> [AnyElement]
-    
-    public init(@ElementBuilder _ content: @escaping () -> [AnyElement]) {
+    public var content: () -> [AnyElement]
+    public var attributes: () -> DictValue
+    public var _attributes: DictValue = [:]
+
+    public init(
+        attributes: @escaping () -> DictValue = {[:]},
+        @ElementBuilder _ content: @escaping () -> [AnyElement]
+    ) {
         self.content = content
-        self.children = children(content)
-    }
-    
-    public func reevaluate() {
-        self.children = children(content)
+        self.attributes = attributes
+        let (attributes, children) = children()
+        self.children = children
+        self._attributes = attributes
     }
 }
 
@@ -218,17 +269,19 @@ public class Button: Element {
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
     public var children: [AnyElement] = []
-    private let content: () -> [AnyElement]
-    let onClick: () -> Void
-    
-    public init(@ElementBuilder _ content: @escaping () -> [AnyElement], onClick: @escaping () -> Void) {
+    public var content: () -> [AnyElement]
+    public var attributes: () -> DictValue
+    public var _attributes: DictValue = [:]
+
+    public init(
+        attributes: @escaping () -> DictValue = {[:]},
+        @ElementBuilder _ content: @escaping () -> [AnyElement],
+    ) {
         self.content = content
-        self.onClick = onClick
-        self.children = children(content)
-    }
-    
-    public func reevaluate() {
-        self.children = children(content)
+        self.attributes = attributes
+        let (attributes, children) = children()
+        self.children = children
+        self._attributes = attributes
     }
 }
 
@@ -236,15 +289,23 @@ public class Text: Element {
     public let name = "text"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
-    
     public var children: [AnyElement] = []
+    public var content: () -> [AnyElement]
+    public var attributes: () -> DictValue
+    public var _attributes: DictValue = [:]
     public var text: String = ""
     
-    public init(_ text: String) {
+    public init(
+        _ text: String,
+        attributes: @escaping () -> DictValue = {[:]},
+    ) {
         self.text = text
+        self.content = { [] }
+        self.attributes = attributes
+        let (attributes, children) = children()
+        self.children = children
+        self._attributes = attributes
     }
-    
-    public func reevaluate() {}
 }
 
 // MARK: - Renderer
@@ -292,14 +353,28 @@ public class DomRenderer: Renderer {
         // unmounting from the Element protocl will also call unmount on dom renderer with the element id, it should destroy that element along with all its children
         // in this case we delete the parent first, meaning we can't call removeChild from js for all of them
         // which is fine, we try that, if no element we just remove it from the element map
-        
+        // TODO - Fix Rendering Styles Please
+        // 05/10/2025 - TODO: We need to take all this code and the code in updateElement, make it be one
+        // 05/10/2025 - TODO: We can iterate over the different types we support in the dict and add them
+        // 05/10/2025 - TODO: Elements aren't convenient to use now, fix that by 
+        _ = node.style = JSObject().jsValue
+        if let styles = element._attributes.dictionary("style") {
+            for key in styles.keys {
+                if let value = styles.string(key) {
+                    _ = node.style.setProperty(key, value)
+                }
+            }
+        }
+
         if let textNode = element as? Text {
             node.innerText = textNode.text.jsValue
         }
         
         if let buttonNode = element as? Button {
             let clickHandler = JSClosure { _ in
-                buttonNode.onClick()
+                if let buttonFunc = buttonNode._attributes.function("onClick") {
+                    buttonFunc()
+                }
                 return .undefined
             }
             node.onclick = clickHandler.jsValue
@@ -317,7 +392,7 @@ public class DomRenderer: Renderer {
         print("calling mount for \(element)")
         guard let parent = elementRefMap[parentId] else {
             print("Couldn't Find Parent Element")
-            abort()
+            return
         }
         mountElement(element, into: parent)
     }
@@ -334,11 +409,22 @@ public class DomRenderer: Renderer {
         
         guard let node else {
             print("Couldn't Find Element To Update")
-            abort()
+            return
         }
         
         if let textNode = element as? Text {
             node.innerText = textNode.text.jsValue
+        }
+        
+        // TODO - Fix Rendering Styles Please
+        _ = node.style = JSObject().jsValue
+        if let styles = element._attributes.dictionary("style") {
+            for key in styles.keys {
+                print("properties \(styles)")
+                if let value = styles.string(key) {
+                    _ = node.style.setProperty(key, value)
+                }
+            }
         }
         
         for child in element.children {
@@ -360,6 +446,7 @@ let state = State(0)
 let state2 = State("true")
 let state3 = State([0])
 let state4 = State(User(name: "Simon", lastName: "Ferns"))
+let spanStyle = State(["background": "orange"])
 
 // todo create a "Component" protocol to make this a bit easier to manage
 func UserComponent(user: User) -> AnyElement {
@@ -372,31 +459,46 @@ func UserComponent(user: User) -> AnyElement {
         }
 }
 
-let ui = Div {
-    Button {
+let ui = Div(
+    attributes: {["style": ["background": "purple" ]]},
+) {
+    Button(
+        attributes: {
+            ["onClick": {
+                print("--- removing bg")
+                spanStyle.value.removeValue(forKey: "background")
+                print("--- removing bg")
+                print("set state1 in button")
+                state.value += 1
+                print("set state1 in button done")
+                
+                state3.value.append(state.value)
+                
+                state4.value.name = [
+                    "Pete",
+                    "John",
+                    "Josh",
+                    "Adam",
+                    "William",
+                    "Anonymous"
+                ].randomElement()!
+                
+                if (state.value % 2 == 0) { state2.value = "true" }
+                if (state.value % 3 != 0) { state2.value = "false" }
+                if (state.value > 10) { state2.value = "some value here"}
+            },
+             "style": [
+                "background": state.value % 2 == 0 ? "green" : "red"
+             ]
+            ]
+        }
+    ) {
         Text("Increment + 1")
-    } onClick: {
-        print("set state1 in button")
-        state.value += 1
-        print("set state1 in button done")
-        
-        state3.value.append(state.value)
-        
-        state4.value.name = [
-            "Pete",
-            "John",
-            "Josh",
-            "Adam",
-            "William",
-            "Anonymous"
-        ].randomElement()!
-        
-        if (state.value % 2 == 0) { state2.value = "true" }
-        if (state.value % 3 != 0) { state2.value = "false" }
-        if (state.value > 10) { state2.value = "some value here"}
     }
     
-    Span {
+    Span(
+        attributes: {["style": spanStyle.value]},
+        ) {
         Text("Count Is \(state.value)")
         
         if state.value % 2 == 0 {

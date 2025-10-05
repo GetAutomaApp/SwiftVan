@@ -4,9 +4,21 @@
     <meta charset="UTF-8">
     <title>Swift WASM Demo</title>
     <style>
-        div, span {
-            display: flex;
-            flex-direction: column;
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box; /* Makes padding and borders included in width/height */
+            border: 0;
+            outline: 0;
+            font: inherit;
+            vertical-align: baseline;
+        }
+        
+        #app {
+            height: 100vh;
+            width: 100vw;
         }
     </style>
 </head>

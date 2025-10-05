@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftVan",
     platforms: [
-        .macOS(.v13)
+        .macOS(.v15)
     ],
     products: [
         .library(
@@ -17,14 +17,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        // JavaScriptKit is needed for DOM / WASM integration
-        .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0")
+        .package(url: "https://github.com/swiftwasm/JavaScriptKit.git", from: "0.36.0"),
     ],
     targets: [
         .target(
             name: "SwiftVan",
             dependencies: [
-                .product(name: "JavaScriptKit", package: "JavaScriptKit")
+                .product(name: "JavaScriptKit", package: "JavaScriptKit"),
             ],
             path: "Sources/SwiftVan"
         ),
