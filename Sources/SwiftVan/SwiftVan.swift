@@ -183,7 +183,7 @@ public extension Element {
                 child.unmount()
             }
             
-            RendererContext.current?.updateElement(self, parentId: nil)
+            RendererContext.current?.updateElement(self)
         }
         
     }
@@ -461,7 +461,7 @@ public class Image: Element {
 public protocol Renderer {
     associatedtype RefObject
     var root: any Element { get }
-    var elementRefMap: [UUID: (parentId: UUID?, element: RefObject)] { get set }
+    var elementRefMap: [UUID: RefObject] { get set }
     
     func mount()
     
@@ -469,13 +469,13 @@ public protocol Renderer {
     // For now we have some duplicated code
     func unmountElement(_  elementId: UUID)
     func mountElement(_ element: any Element, parentId: UUID)
-    func updateElement(_ element: any Element, parentId: UUID?)
+    func updateElement(_ element: any Element)
 }
 
 public class DomRenderer: Renderer {
     public typealias RefObject = JSObject
     public let root: any Element
-    public var elementRefMap: [UUID: (parentId: UUID?, element: JSObject)] = [:]
+    public var elementRefMap: [UUID: JSObject] = [:]
     
     public init(root: any Element) {
         self.root = root
@@ -483,45 +483,17 @@ public class DomRenderer: Renderer {
     }
     
     public func mount() {
-        print("starting initialal mount")
         let document = JSObject.global.document
         let container = document.getElementById("app").object!
-        let appId = UUID()
-        print("done constructing parent \(appId)")
-        elementRefMap[appId] = (parentId: nil, element: container)
-        print("added parent to refMap \(elementRefMap)")
-        mountElement(root, parentId: appId)
+        mountElement(root, into: container)
+        print(root)
     }
     
-    public func unmountElement(_ elementId: UUID) {
-        let element = elementRefMap[elementId]
-        guard let element else {return}
-        let (_, node) = element
-        _ = node.remove!()
-        elementRefMap.removeValue(forKey: elementId)
-    }
-    
-    public func updateElement(_ element: any Element, parentId: UUID?) {
-        print("updateElement \(element.name) \(element.refId)")
-        let elementRef = elementRefMap[element.refId]
-        
-        print("updateElement exists?")
-        if elementRef != nil {
-            print("updateElement exists = true")
-            unmountElement(element.refId)
-            print("updateElement exists = true unmount")
-        }
-        
-        print("updateElement create node")
+    private func mountElement(_ element: any Element, into parent: JSObject) {
+        print(element)
         let node = JSObject.global.document.createElement(element.name).object!
-        print("updateElement updateRefMap 1 \(elementRefMap)")
-        let thisElementRef = (
-            parentId: elementRef?.parentId ?? parentId,
-            element: node
-        )
-        elementRefMap[element.refId] = thisElementRef
-        print("updateElement updateRefMap 2 \(elementRefMap)")
-
+        elementRefMap[element.refId] = node
+        
         // sets the initial text
         // we need to have some global context to which we assign the DomRenderer
         // dom renderer will have the courtesy to update elements
@@ -535,22 +507,33 @@ public class DomRenderer: Renderer {
         // 05/10/2025 - TODO: We can iterate over the different types we support in the dict and add them
         // 05/10/2025 - TODO: Elements aren't convenient to use now, fix that by
         
-        for (key, value) in element._attributes {
-            print("\(key)=\(value) \(value is (() -> Void))")
-            if let value = value as? ConvertibleToJSValue {
-                node[key] = value.jsValue
-            }
-            
-            if let value = element._attributes.function(key) {
-                node[key] = JSClosure { _ in
-                    value()
-                    return .undefined
-                }.jsValue
+        
+        print("mountElement: keys of \(element.name) is \(element._attributes.keys)")
+        func vals(input: DictValue, node: JSObject) {
+            print("mountElement-vals: keys of \(element.name) is \(element._attributes.keys)")
+            for (key, value) in input {
+                print("\(key)=\(value) \(value is DictValue)")
+                if let value = value as? ConvertibleToJSValue {
+                    print("key is val \(key)")
+                    node[key] = value.jsValue
+                }
+                
+                if let value = input.function(key) {
+                    print("key is func \(key)")
+                    node[key] = JSClosure { _ in
+                        value()
+                        return .undefined
+                    }.jsValue
+                }
+                
+                if let value = input.dictionary(key) {
+                    print("key is dict \(key)")
+                    vals(input: value, node: node[key].object!)
+                }
             }
         }
         
-//        _ = node.style = element._attributes
-//            .dictionary("style")?.toJsValue() ?? JSObject().jsValue
+        vals(input: element._attributes, node: node)
         
         if let textNode = element as? Text {
             node.innerText = textNode.text.jsValue
@@ -566,26 +549,71 @@ public class DomRenderer: Renderer {
 //            node.onclick = clickHandler.jsValue
 //        }
         
-//        if let imageNode = element as? Image {
-//            if let src = imageNode._attributes.string("src") {
-//                node.src = src.jsValue
-//            }
-//        }
+        _ = parent.appendChild!(node)
         
-        let parent = elementRefMap[thisElementRef.parentId ?? UUID()]
-        print(
-            "pinning self to parent element \(element.name), parent=\(parent?.element) \(element.refId)"
-        )
-        _ = parent?.element.appendChild!(node)
-        
+        print("children for \(element.name) \(element.children)")
         for child in element.children {
-            mountElement(child, parentId: element.refId)
+            mountElement(child, into: node)
         }
     }
     
     public func mountElement(_ element: any Element, parentId: UUID) {
-        print("call to mountElement \(element) \(parentId)")
-        updateElement(element, parentId: parentId)
-        print("call done mountElement \(element) \(parentId)")
+        print("calling mount for \(element)")
+        guard let parent = elementRefMap[parentId] else {
+            print("Couldn't Find Parent Element")
+            return
+        }
+        mountElement(element, into: parent)
+    }
+    
+    public func unmountElement(_ elementId: UUID) {
+        let node = elementRefMap[elementId]
+        print("stuff", node, elementId, elementRefMap.keys)
+        _ = node?.remove!()
+        elementRefMap.removeValue(forKey: elementId)
+    }
+    
+    public func updateElement(_ element: any Element) {
+        let node = elementRefMap[element.refId]
+        
+        guard let node else {
+            print("Couldn't Find Element To Update")
+            return
+        }
+        
+        if let textNode = element as? Text {
+            node.innerText = textNode.text.jsValue
+        }
+        
+        print("keys of \(element.name) is \(element._attributes.keys)")
+        func vals(input: DictValue, node: JSObject) {
+            for (key, value) in input {
+                print("\(key)=\(value) \(value is DictValue)")
+                if let value = value as? ConvertibleToJSValue {
+                    print("key is val \(key)")
+                    node[key] = value.jsValue
+                }
+                
+                if let value = input.function(key) {
+                    print("key is func \(key)")
+                    node[key] = JSClosure { _ in
+                        value()
+                        return .undefined
+                    }.jsValue
+                }
+                
+                if let value = input.dictionary(key) {
+                    print("key is dict \(key)")
+                    vals(input: value, node: node[key].object!)
+                }
+            }
+        }
+        
+        vals(input: element._attributes, node: node)
+        
+        
+        for child in element.children {
+            mountElement(child, parentId: element.refId)
+        }
     }
 }
