@@ -16,3 +16,8 @@ npm run install:all
 > [!WARNING]
 > This REPO uses the GPL-3.0 license, this license only applies if you modify this template and intend to use this as a template repo!
 > If this repo is applied as a new project, feel free to close source it!
+
+# TODOS:
+- [ ] Components
+- [ ] PhantomElement around If-Else (Prevents Parent Re-Renders - Performance)
+- [ ] Convenience Inits for rest & finish for now (build automa landing, personal site & blog site)
