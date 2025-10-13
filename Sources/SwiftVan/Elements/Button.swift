@@ -15,7 +15,7 @@ public class Button: Element {
     public var attributes: () -> DictValue
     public var _attributes: DictValue = [:]
     
-    public init(
+    init(
         attributes: @escaping () -> DictValue = {[:]},
         @ElementBuilder _ content: @escaping () -> [AnyElement],
     ) {
@@ -24,5 +24,18 @@ public class Button: Element {
         let (attributes, children) = children()
         self.children = children
         self._attributes = attributes
+    }
+    
+    public convenience init(
+        _ attributes: @escaping () -> DictValue = {[:]},
+        onclick: @escaping () -> Void = {},
+        @ElementBuilder _ content: @escaping () -> [AnyElement],
+    ) {
+        let attrs = {
+            var attrs = attributes()
+            attrs["onclick"] = onclick
+            return attrs
+        }
+        self.init(attributes: attrs, content)
     }
 }
