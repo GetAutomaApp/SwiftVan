@@ -8,6 +8,7 @@ import Foundation
 
 // image
 public class Image: Element {
+    public var cacheKey: String = ""
     public let name = "img"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
@@ -17,7 +18,7 @@ public class Image: Element {
     public var _attributes: DictValue = [:]
     
     public init(
-        attributes: @escaping () -> DictValue = {[:]},
+        attributes: @escaping () -> DictValue = {[:]}
     ) {
         self.attributes = attributes
         let (attributes, children) = children()

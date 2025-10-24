@@ -7,6 +7,7 @@
 import Foundation
 
 public class OrderedList: Element {
+    public var cacheKey: String = ""
     public let name = "ol"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
@@ -17,7 +18,7 @@ public class OrderedList: Element {
     
     public init(
         attributes: @escaping () -> DictValue = {[:]},
-        @ElementBuilder _ content: @escaping () -> [ListItem]
+        @ElementBuilder _ content: @escaping () -> [AnyElement]
     ) {
         self.content = content
         self.attributes = attributes

@@ -44,6 +44,41 @@ let spanStyle = State(["background": "orange"])
 //    }
 //}
 
+final class Counter: BaseComponent {
+    var count = State(0)
+    
+    override func render() -> AnyElement {
+        Div {
+            Text.h3({"Count: \(self.count.value)"})
+            Button(onclick: { self.count.value += 1 }) { Text({"Increment"}) }
+            Counter2.self
+        }
+    }
+}
+
+
+final class Counter2: BaseComponent {
+    var count = State(0)
+    
+    override func render() -> AnyElement {
+        Div {
+            Text.h3({"Count(2): \(self.count.value)"})
+            Button(onclick: { self.count.value += 1 }) { Text({"Increment"}) }
+        }
+    }
+}
+
+
+// Currently we're re-building the parent elements that rely on a state variable, the problem is we're resetting the ids for all the children we're building.
+// We don't want to do that and only remove / add the children that are being removed / added
+// We also only want to update the properties on the children rather than re-rendering them completely
+// This will require that we don't call content() when the parent updates again, because that rebuilds the entire tree from that point
+// We only want to call it when there is an if-else condition in the tree, which can be indicated by assigning hasOptional to the parent element, we'll also need to store the previous value to determine if we need to change anything if the condition changed or not right?
+// We also want to have when attributes change, don't re-render, only update the attributes, we can figure this out by simply knowing if it is an optional or not
+// Then we don't need the component cache at all, because we can ust call Component() and the state variables should persist except in optional changing cases (which we expect right?)
+// isOptionalChildren should be the simplest approach then
+// What happens for lists? How do we add a new item? Or do we just not want to allow for-each loop, rather only allow ForEach() custom element, because we jsut want to add children, not re-render the whole thing right?
+
 let ui = Div(
     attributes: {["style": ["background": "purple" ]]},
 ) {
@@ -111,7 +146,17 @@ let ui = Div(
             if (state.value > 10) { state2.value = "some value here"}
         }
     ) {
-        Text.h3("HI")
+        Text.h3({"HI \(state.value)"})
+    }
+    
+    Div(
+        attributes: {[
+            "style": [
+                                "background": state.value % 2 == 0 ? "green" : "red"
+            ]
+        ]},
+    ) {
+        Counter.self
     }
 //
 //    Span(

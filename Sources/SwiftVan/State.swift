@@ -30,22 +30,29 @@ public final class State<T: CustomStringConvertible>: AnyState {
         }
         get {
             guard var currentEl = RendererContext.currentBuildingElement else {
+                print("no current element")
                 return _value
             }
             
+            print(
+                "there is current element \(currentEl.name) \(currentEl.stateSubscribers)"
+            )
             if !currentEl.stateSubscribers.values.contains(where: { $0.id == self.id }) {
                 let stateId = UUID()
                 var skip = true
                 subscribe(stateId) {
                     if (skip) {
+                        print("skipping")
                         skip = false
                         return
                     }
+                    print("updating")
                     currentEl.update()
                 }
                 currentEl.stateSubscribers[stateId] = self
+            } else {
+                print("already have state sub")
             }
-            
             return _value
         }
     }

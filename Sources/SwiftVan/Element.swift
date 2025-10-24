@@ -15,6 +15,7 @@ public protocol Element {
     var attributes: () -> DictValue { get set }
     var _attributes: DictValue { get set }
     var content: () -> [AnyElement] { get set }
+    var cacheKey: String { get set }
     
     func unmount() -> Void
 }
@@ -34,23 +35,11 @@ public extension Element {
     }
     
     mutating func update() {
-        let previousChildren = children
-        let previousChildrenRefs = previousChildren.compactMap(\.refId)
-        
         let (attributes, children) = children()
         self._attributes = attributes
         self.children = children
         
-        let newChildrenRef = children.compactMap(\.refId)
-        let isDifferent = previousChildrenRefs != newChildrenRef || previousChildren.count != children.count
-        
-        if isDifferent {
-            for child in previousChildren {
-                child.unmount()
-            }
-            
-            RendererContext.current?.updateElement(self, parentId: nil)
-        }
+        RendererContext.current?.updateElement(self, parentId: nil)
         
     }
     
@@ -58,11 +47,25 @@ public extension Element {
         attributes: DictValue,
         children: [AnyElement]
     ) {
-        let previous = RendererContext.currentBuildingElement
-        RendererContext.currentBuildingElement = self    // set current el as parent dep
-        let children = content()         // create children
+        // Compute cache key relative to parent
+        let parentCacheKey = RendererContext.currentBuildingElement?.cacheKey ?? "root"
+        let myCacheKey = "\(parentCacheKey)/\(name)"
+        
+        var mutableSelf = self
+        mutableSelf.cacheKey = myCacheKey
+        
+        // Set current element for children
+        let previousElement = RendererContext.currentBuildingElement
+        RendererContext.currentBuildingElement = mutableSelf
+        
+        let children = content()
         let attributes = attributes()
-        RendererContext.currentBuildingElement = previous // restore previous
+        
+        // Restore
+        RendererContext.currentBuildingElement = previousElement
+        
         return (attributes, children)
     }
+
+
 }

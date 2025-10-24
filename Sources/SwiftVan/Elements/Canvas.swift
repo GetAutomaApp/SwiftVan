@@ -8,6 +8,7 @@ import Foundation
 
 // TODO: thead, th, tfoot, td, tbody, table
 public class Canvas: Element {
+    public var cacheKey: String = ""
     public let name = "canvas"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]

@@ -7,6 +7,7 @@
 import Foundation
 
 public class UnorderedList: Element {
+    public var cacheKey: String = ""
     public let name = "ul"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]

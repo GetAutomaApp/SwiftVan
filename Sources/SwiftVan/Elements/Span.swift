@@ -7,7 +7,7 @@
 import Foundation
 
 public class Span: Element {
-    
+    public var cacheKey: String = ""
     public let name = "span"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]

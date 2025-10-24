@@ -7,6 +7,7 @@
 import Foundation
 
 public class HyperLink: Element {
+    public var cacheKey: String = ""
     public let name = "a"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]

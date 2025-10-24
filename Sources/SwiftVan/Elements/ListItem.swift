@@ -7,6 +7,7 @@
 import Foundation
 
 public class ListItem: Element {
+    public var cacheKey: String = ""
     public let name = "li"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]

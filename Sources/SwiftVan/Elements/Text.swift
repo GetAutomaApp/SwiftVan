@@ -7,6 +7,8 @@
 import Foundation
 
 public class Text: Element {
+    public var cacheKey: String = ""
+    
     public enum Size: String {
         case normal, h1, h3, h5, h6
     }
@@ -20,7 +22,7 @@ public class Text: Element {
     public var _attributes: DictValue = [:]
     
     required public init(
-        _ text: String,
+        _ text: @escaping () -> String,
         size: Size = .normal,
         attributes: @escaping () -> DictValue = {[:]},
     ) {
@@ -28,7 +30,10 @@ public class Text: Element {
         self.content = { [] }
         self.attributes = {
             var attrs = attributes()
-            attrs["innerText"] = text
+            print("calling text func for text")
+            let initText = text()
+            attrs["innerText"] = initText
+            print("there is text \(attrs["innerText"])")
             return attrs
         }
         let (attributes, children) = children()
@@ -37,35 +42,35 @@ public class Text: Element {
     }
     
     public static func normal(
-        _ text: String,
+        _ text: @escaping () -> String,
         attributes: @escaping () -> DictValue = {[:]},
     ) -> Self {
         return Self.init(text, size: Size.normal, attributes: attributes)
     }
     
     public static func h1(
-        _ text: String,
+        _ text: @escaping () -> String,
         attributes: @escaping () -> DictValue = {[:]},
     ) -> Self {
         return Self.init(text, size: Size.h1, attributes: attributes)
     }
     
     public static func h3(
-        _ text: String,
+        _ text: @escaping () -> String,
         attributes: @escaping () -> DictValue = {[:]},
     ) -> Self {
         return Self.init(text, size: Size.h3, attributes: attributes)
     }
     
     public static func h5(
-        _ text: String,
+        _ text: @escaping () -> String,
         attributes: @escaping () -> DictValue = {[:]},
     ) -> Self {
         return Self.init(text, size: Size.h5, attributes: attributes)
     }
     
     public static func h6(
-        _ text: String,
+        _ text: @escaping () -> String,
         attributes: @escaping () -> DictValue = {[:]},
     ) -> Self {
         return Self.init(text, size: Size.h6, attributes: attributes)

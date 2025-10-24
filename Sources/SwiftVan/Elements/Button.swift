@@ -7,6 +7,8 @@
 import Foundation
 
 public class Button: Element {
+    public var cacheKey: String = ""
+
     public let name = "button"
     public let refId: UUID = UUID()
     public var stateSubscribers: [UUID: AnyState] = [:]
