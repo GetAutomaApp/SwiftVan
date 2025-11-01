@@ -16,10 +16,12 @@ public class Image: Element {
     public var attributes: () -> DictValue
     public var _attributes: DictValue = [:]
     
-    public init(attributes: @escaping () -> DictValue = {[:]}) {
+    public init(
+        attributes: @escaping () -> DictValue = {[:]}
+    ) {
         self.attributes = attributes
-        let attributes = children()
+        let (attributes, children) = children()
+        self.children = children
         self._attributes = attributes
-        self.children = content()
     }
 }

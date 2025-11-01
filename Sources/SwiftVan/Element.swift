@@ -34,21 +34,22 @@ public extension Element {
     }
     
     func update() {
-        let newAttributes = self.children()
-
-        // Update parent attributes if they have changed
-        if !NSDictionary(dictionary: newAttributes).isEqual(to: self._attributes) {
-            self._attributes = newAttributes
-            // This calls the renderer to update only the parent's attributes
-            RendererContext.current?.updateElement(self, parentId: nil)
+        let (newAttributes, _) = self.children(evalChildren: false)
+        if self.name == "span" {
+            print("spanUpdate attrs")
+            print("spanUpdate prev: ", self._attributes)
+            print("spanUpdate new: ", newAttributes)
         }
+        self._attributes = newAttributes
+        RendererContext.current?.updateElement(self, parentId: nil)
     }
     
-    func children() -> DictValue {
+    func children(evalChildren: Bool = true) -> (attributes: DictValue, children: [AnyElement]) {
         let previous = RendererContext.currentBuildingElement
         RendererContext.currentBuildingElement = self    // set current el as parent dep
         let attributes = attributes()
+        let children = evalChildren ? content() : self.children
         RendererContext.currentBuildingElement = previous // restore previous
-        return attributes
+        return (attributes, children)
     }
 }

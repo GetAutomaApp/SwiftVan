@@ -27,6 +27,9 @@ let ui = Div(
         ]},
         onclick: {
             print("--- removing bg")
+            if (spanStyle.value["background"] == nil) {
+                spanStyle.value["color"] = state.value % 2 == 0 ? "red" : "blue"
+            }
             spanStyle.value.removeValue(forKey: "background")
             print("--- removing bg")
             print("set state1 in button")
@@ -49,13 +52,18 @@ let ui = Div(
             if (state.value > 10) { state2.value = "some value here"}
         }
     ) {
-        Text.h3("HI")
+        Text.h3({"HI"})
     }
 
     Span(
-        attributes: {["style": spanStyle.value]},
+        attributes: {
+            print("spanUpdate attrs set")
+            let attrs = ["style": spanStyle.value]
+            print("spanUpdate attrs set:", attrs)
+            return attrs
+        },
         ) {
-        Text("Count Is \(state.value)")
+        Text({"Count Is \(state.value)"})
         
 //        if state.value % 2 == 0 {
 //            Text("Value Is Even")

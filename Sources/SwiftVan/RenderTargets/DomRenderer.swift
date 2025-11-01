@@ -48,6 +48,11 @@ public class DomRenderer: Renderer {
         var node: JSObject
         var thisElementRef: (parentId: UUID?, element: JSObject)
         
+        if element.name == "span" {
+            print("span styles: ")
+            print(element._attributes)
+        }
+        
         if let existing = elementRef {
             node = existing.element
             thisElementRef = (parentId: existing.parentId ?? parentId, element: node)

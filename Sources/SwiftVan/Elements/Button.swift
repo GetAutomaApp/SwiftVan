@@ -15,12 +15,15 @@ public class Button: Element {
     public var attributes: () -> DictValue
     public var _attributes: DictValue = [:]
     
-    public init(attributes: @escaping () -> DictValue = {[:]}, @ElementBuilder _ content: @escaping () -> [AnyElement]) {
+    init(
+        attributes: @escaping () -> DictValue = {[:]},
+        @ElementBuilder _ content: @escaping () -> [AnyElement],
+    ) {
         self.content = content
         self.attributes = attributes
-        let attributes = children()
+        let (attributes, children) = children()
+        self.children = children
         self._attributes = attributes
-        self.children = content()
     }
     
     public convenience init(
