@@ -29,7 +29,7 @@ public final class State<T: CustomStringConvertible>: AnyState {
             notify()
         }
         get {
-            guard var currentEl = RendererContext.currentBuildingElement else {
+            guard let currentEl = RendererContext.currentBuildingElement else {
                 return _value
             }
             
@@ -43,7 +43,9 @@ public final class State<T: CustomStringConvertible>: AnyState {
                     }
                     currentEl.update()
                 }
-                currentEl.stateSubscribers[stateId] = self
+                
+                // This is the fix: Modify the element held by the context directly.
+                RendererContext.currentBuildingElement?.stateSubscribers[stateId] = self
             }
             
             return _value

@@ -16,14 +16,11 @@ public class Canvas: Element {
     public var attributes: () -> DictValue
     public var _attributes: DictValue = [:]
     
-    public init(
-        attributes: @escaping () -> DictValue = {[:]},
-        @ElementBuilder _ content: @escaping () -> [AnyElement]
-    ) {
+    public init(attributes: @escaping () -> DictValue = {[:]}, @ElementBuilder _ content: @escaping () -> [AnyElement]) {
         self.content = content
         self.attributes = attributes
-        let (attributes, children) = children()
-        self.children = children
+        let attributes = children()
         self._attributes = attributes
+        self.children = content()
     }
 }

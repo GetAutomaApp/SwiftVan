@@ -27,12 +27,12 @@ public class Text: Element {
         self.name = size.rawValue
         self.content = { [] }
         self.attributes = {
+            print("updating innerText")
             var attrs = attributes()
             attrs["innerText"] = text
             return attrs
         }
-        let (attributes, children) = children()
-        self.children = children
+        let attributes = children()
         self._attributes = attributes
     }
     

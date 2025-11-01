@@ -7,7 +7,7 @@
 import Foundation
 
 public typealias AnyElement = any Element
-public protocol Element {
+public protocol Element: AnyObject {
     var name: String { get }
     var refId: UUID { get }
     var stateSubscribers: [UUID: AnyState] { get set }
@@ -33,36 +33,22 @@ public extension Element {
         }
     }
     
-    mutating func update() {
-        let previousChildren = children
-        let previousChildrenRefs = previousChildren.compactMap(\.refId)
-        
-        let (attributes, children) = children()
-        self._attributes = attributes
-        self.children = children
-        
-        let newChildrenRef = children.compactMap(\.refId)
-        let isDifferent = previousChildrenRefs != newChildrenRef || previousChildren.count != children.count
-        
-        if isDifferent {
-            for child in previousChildren {
-                child.unmount()
-            }
-            
+    func update() {
+        let newAttributes = self.children()
+
+        // Update parent attributes if they have changed
+        if !NSDictionary(dictionary: newAttributes).isEqual(to: self._attributes) {
+            self._attributes = newAttributes
+            // This calls the renderer to update only the parent's attributes
             RendererContext.current?.updateElement(self, parentId: nil)
         }
-        
     }
     
-    func children() -> (
-        attributes: DictValue,
-        children: [AnyElement]
-    ) {
+    func children() -> DictValue {
         let previous = RendererContext.currentBuildingElement
         RendererContext.currentBuildingElement = self    // set current el as parent dep
-        let children = content()         // create children
         let attributes = attributes()
         RendererContext.currentBuildingElement = previous // restore previous
-        return (attributes, children)
+        return attributes
     }
 }

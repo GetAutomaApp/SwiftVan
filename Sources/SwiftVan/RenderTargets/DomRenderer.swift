@@ -45,13 +45,28 @@ public class DomRenderer: Renderer {
             print("updateElement exists = true")
         }
         
-        print("updateElement create node")
-        let node = JSObject.global.document.createElement(element.name).object!
-        print("updateElement updateRefMap 1 \(elementRefMap)")
-        let thisElementRef = (
-            parentId: elementRef?.parentId ?? parentId,
-            element: node
-        )
+        var node: JSObject
+        var thisElementRef: (parentId: UUID?, element: JSObject)
+        
+        if let existing = elementRef {
+            node = existing.element
+            thisElementRef = (parentId: existing.parentId ?? parentId, element: node)
+            print("updateElement reuse node \(element.name) \(element.refId)")
+            
+            let resetKeys = ["onclick", "onchange", "oninput", "onmouseover", "onmouseout", "style"]
+            for key in resetKeys {
+                node[key] = JSValue.undefined
+            }
+            if let style = node["style"].object {
+                style["cssText"] = ""
+            }
+        } else {
+            print("updateElement create node")
+            node = JSObject.global.document.createElement(element.name).object!
+            thisElementRef = (parentId: parentId, element: node)
+            print("updateElement updateRefMap 1 \(elementRefMap)")
+        }
+        
         elementRefMap[element.refId] = thisElementRef
         print("updateElement updateRefMap 2 \(elementRefMap)")
         
@@ -98,9 +113,7 @@ public class DomRenderer: Renderer {
             "pinning self to parent element \(element.name), parent=\(parent?.element) \(element.refId)"
         )
         
-        if let elementRef {
-            _ = parent?.element.replaceChild!(node, elementRef.element)
-        } else {
+        if elementRef == nil {
             _ = parent?.element.appendChild!(node)
         }
         
@@ -108,6 +121,7 @@ public class DomRenderer: Renderer {
             mountElement(child, parentId: element.refId)
         }
     }
+
     
     public func mountElement(_ element: any Element, parentId: UUID) {
         print("call to mountElement \(element) \(parentId)")
