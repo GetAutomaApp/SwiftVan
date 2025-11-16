@@ -7,17 +7,15 @@
 import Foundation
 
 @resultBuilder
-public struct ArrayBuilder<T> {
-    public static func buildBlock() -> [T] { [] }
-    public static func buildBlock(_ components: [T]...) -> [T] { components.flatMap { $0 } }
+public struct ElementBuilder {
+    public static func buildBlock() -> [Element] { [] }
+    public static func buildBlock(_ components: [Element]...) -> [Element] { components.flatMap { $0 } }
     
     // wrap in phantom element - prevents re-rendering the whole parent
-    public static func buildExpression(_ expression: T) -> [T] { [expression] }
-    public static func buildExpression(_ expression: T?) -> [T] { expression.map { [$0] } ?? [] }
-    public static func buildExpression(_ expression: [T]) -> [T] { expression }
+    public static func buildExpression(_ expression: Element) -> [Element] { [expression] }
+    public static func buildExpression(_ expression: Element?) -> [Element] { expression.map { [$0] } ?? [] }
+    public static func buildExpression(_ expression: [Element]) -> [Element] { expression }
     // wrap in phantom element - prevents re-rendering the whole parent
     
-    public static func buildArray(_ components: [[T]]) -> [T] { components.flatMap { $0 } }
+    public static func buildArray(_ components: [[Element]]) -> [Element] { components.flatMap { $0 } }
 }
-
-public typealias ElementBuilder = ArrayBuilder<AnyElement>

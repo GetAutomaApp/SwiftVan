@@ -19,6 +19,7 @@ public class Image: Element {
     public init(
         attributes: @escaping () -> DictValue = {[:]}
     ) {
+        print("creating image")
         self.attributes = attributes
         let (attributes, children) = children()
         self.children = children

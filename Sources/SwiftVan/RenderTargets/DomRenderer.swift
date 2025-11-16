@@ -4,13 +4,17 @@
 //
 //  Created by Simon Ferns on 10/13/25.
 //
+
 import Foundation
 import JavaScriptKit
+
 
 public class DomRenderer: Renderer {
     public typealias RefObject = JSObject
     public let root: any Element
     public var elementRefMap: [UUID: (parentId: UUID?, element: JSObject)] = [:]
+    
+    public var previousProps: [UUID: DictValue] = [:]
     
     public init(root: any Element) {
         self.root = root
@@ -30,107 +34,125 @@ public class DomRenderer: Renderer {
     
     public func unmountElement(_ elementId: UUID) {
         let element = elementRefMap[elementId]
-        guard let element else {return}
+        guard let element else { return }
         let (_, node) = element
         _ = node.remove!()
         elementRefMap.removeValue(forKey: elementId)
+        previousProps.removeValue(forKey: elementId)
     }
+    
+    struct PropsDiff {
+        var added: [String: Any]
+        var changed: [String: Any]
+        var removed: [String]
+    }
+    
+    func diffProps(old: DictValue, new: DictValue) -> PropsDiff {
+        var added: [String: Any] = [:]
+        var changed: [String: Any] = [:]
+        var removed: [String] = []
+        
+        for key in new.keys {
+            let newVal = new[key]!
+            if let oldVal = old[key] {
+                if !areValuesEqual(oldVal, newVal) {
+                    changed[key] = newVal
+                }
+            } else {
+                added[key] = newVal
+            }
+        }
+        
+        for key in old.keys {
+            if new[key] == nil {
+                removed.append(key)
+            }
+        }
+        
+        return PropsDiff(added: added, changed: changed, removed: removed)
+    }
+    
+    func areValuesEqual(_ a: Any, _ b: Any) -> Bool {
+        return String(describing: a) == String(describing: b)
+    }
+    
     
     public func updateElement(_ element: any Element, parentId: UUID?) {
         print("updateElement \(element.name) \(element.refId)")
+        
         let elementRef = elementRefMap[element.refId]
-        
-        print("updateElement exists?")
-        if elementRef != nil {
-            print("updateElement exists = true")
-        }
-        
         var node: JSObject
         var thisElementRef: (parentId: UUID?, element: JSObject)
-        
-        if element.name == "span" {
-            print("span styles: ")
-            print(element._attributes)
-        }
         
         if let existing = elementRef {
             node = existing.element
             thisElementRef = (parentId: existing.parentId ?? parentId, element: node)
             print("updateElement reuse node \(element.name) \(element.refId)")
-            
-            let resetKeys = ["onclick", "onchange", "oninput", "onmouseover", "onmouseout", "style"]
-            for key in resetKeys {
-                node[key] = JSValue.undefined
-            }
-            if let style = node["style"].object {
-                style["cssText"] = ""
-            }
         } else {
             print("updateElement create node")
             node = JSObject.global.document.createElement(element.name).object!
             thisElementRef = (parentId: parentId, element: node)
-            print("updateElement updateRefMap 1 \(elementRefMap)")
         }
         
         elementRefMap[element.refId] = thisElementRef
-        print("updateElement updateRefMap 2 \(elementRefMap)")
         
-        // sets the initial text
-        // we need to have some global context to which we assign the DomRenderer
-        // dom renderer will have the courtesy to update elements
-        // aka Text will call domrenderer that it has been updated with its id
-        // dom renderer will then use the new state of text element to update text
-        // unmounting from the Element protocl will also call unmount on dom renderer with the element id, it should destroy that element along with all its children
-        // in this case we delete the parent first, meaning we can't call removeChild from js for all of them
-        // which is fine, we try that, if no element we just remove it from the element map
-        // TODO - Fix Rendering Styles Please
-        // 05/10/2025 - TODO: We need to take all this code and the code in updateElement, make it be one
-        // 05/10/2025 - TODO: We can iterate over the different types we support in the dict and add them
-        // 05/10/2025 - TODO: Elements aren't convenient to use now, fix that by
         
-        func vals(input: DictValue, node: JSObject) {
-            for (key, value) in input {
-                print("\(key)=\(value) \(value is DictValue)")
-                if let value = value as? ConvertibleToJSValue {
-                    print("key is val \(key)")
-                    node[key] = value.jsValue
+        let oldProps = previousProps[element.refId] ?? DictValue()
+        let newProps = element._attributes
+        
+        let diff = diffProps(old: oldProps, new: newProps)
+        
+        func applyProp(key: String, value: Any, on node: JSObject) {
+            if let convertible = value as? ConvertibleToJSValue {
+                node[key] = convertible.jsValue
+                return
+            }
+            
+            if let closure = newProps.function(key) {
+                node[key] = JSClosure { _ in
+                    closure()
+                    return .undefined
+                }.jsValue
+                return
+            }
+            
+            if let dict = newProps.dictionary(key) {
+                let childNode = node[key].object!
+                for (subKey, subVal) in dict {
+                    applyProp(key: subKey, value: subVal, on: childNode)
                 }
-                
-                if let value = input.function(key) {
-                    print("key is func \(key)")
-                    node[key] = JSClosure { _ in
-                        value()
-                        return .undefined
-                    }.jsValue
-                }
-                
-                if let value = input.dictionary(key) {
-                    print("key is dict \(key)")
-                    vals(input: value, node: node[key].object!)
-                }
+                return
             }
         }
         
-        vals(input: element._attributes, node: node)
+        for key in diff.removed {
+            node[key] = JSValue.undefined
+        }
         
-        let parent = elementRefMap[thisElementRef.parentId ?? UUID()]
-        print(
-            "pinning self to parent element \(element.name), parent=\(parent?.element) \(element.refId)"
-        )
+        for (key, val) in diff.added {
+            applyProp(key: key, value: val, on: node)
+        }
+        
+        for (key, val) in diff.changed {
+            applyProp(key: key, value: val, on: node)
+        }
+        
+        previousProps[element.refId] = newProps
+        
         
         if elementRef == nil {
+            let parent = elementRefMap[thisElementRef.parentId ?? UUID()]
             _ = parent?.element.appendChild!(node)
         }
+        
         
         for child in element.children {
             mountElement(child, parentId: element.refId)
         }
     }
-
+    
     
     public func mountElement(_ element: any Element, parentId: UUID) {
-        print("call to mountElement \(element) \(parentId)")
         updateElement(element, parentId: parentId)
-        print("call done mountElement \(element) \(parentId)")
     }
 }
