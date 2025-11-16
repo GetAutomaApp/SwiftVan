@@ -29,30 +29,25 @@ public final class State<T: CustomStringConvertible>: AnyState {
             notify()
         }
         get {
-            guard var currentEl = RendererContext.currentBuildingElement else {
-                print("no current element")
+            guard let currentEl = RendererContext.currentBuildingElement else {
                 return _value
             }
             
-            print(
-                "there is current element \(currentEl.name) \(currentEl.stateSubscribers)"
-            )
             if !currentEl.stateSubscribers.values.contains(where: { $0.id == self.id }) {
                 let stateId = UUID()
                 var skip = true
                 subscribe(stateId) {
                     if (skip) {
-                        print("skipping")
                         skip = false
                         return
                     }
-                    print("updating")
                     currentEl.update()
                 }
-                currentEl.stateSubscribers[stateId] = self
-            } else {
-                print("already have state sub")
+                
+                // This is the fix: Modify the element held by the context directly.
+                RendererContext.currentBuildingElement?.stateSubscribers[stateId] = self
             }
+            
             return _value
         }
     }

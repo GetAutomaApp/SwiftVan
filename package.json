@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon",
-    "build:van:example": "swift package --swift-sdk 6.1-RELEASE-wasm32-unknown-wasi js --use-cdn --product SwiftVanExample -c debug",
+    "build:van:example": "swift package --swift-sdk 6.1-RELEASE-wasm32-unknown-wasi js --use-cdn --product SwiftVanExample",
     "config": "./.dotfiles/config.sh",
     "install:swiftlint": "brew install swiftlint",
     "install:swiftformat": "brew install swiftformat",

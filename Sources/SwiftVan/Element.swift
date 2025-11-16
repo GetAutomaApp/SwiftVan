@@ -7,7 +7,7 @@
 import Foundation
 
 public typealias AnyElement = any Element
-public protocol Element {
+public protocol Element: AnyObject {
     var name: String { get }
     var refId: UUID { get }
     var stateSubscribers: [UUID: AnyState] { get set }
@@ -15,7 +15,6 @@ public protocol Element {
     var attributes: () -> DictValue { get set }
     var _attributes: DictValue { get set }
     var content: () -> [AnyElement] { get set }
-    var cacheKey: String { get set }
     
     func unmount() -> Void
 }
@@ -34,38 +33,23 @@ public extension Element {
         }
     }
     
-    mutating func update() {
-        let (attributes, children) = children()
-        self._attributes = attributes
-        self.children = children
-        
+    func update() {
+        let (newAttributes, _) = self.children(evalChildren: false)
+        if self.name == "span" {
+            print("spanUpdate attrs")
+            print("spanUpdate prev: ", self._attributes)
+            print("spanUpdate new: ", newAttributes)
+        }
+        self._attributes = newAttributes
         RendererContext.current?.updateElement(self, parentId: nil)
-        
     }
     
-    func children() -> (
-        attributes: DictValue,
-        children: [AnyElement]
-    ) {
-        // Compute cache key relative to parent
-        let parentCacheKey = RendererContext.currentBuildingElement?.cacheKey ?? "root"
-        let myCacheKey = "\(parentCacheKey)/\(name)"
-        
-        var mutableSelf = self
-        mutableSelf.cacheKey = myCacheKey
-        
-        // Set current element for children
-        let previousElement = RendererContext.currentBuildingElement
-        RendererContext.currentBuildingElement = mutableSelf
-        
-        let children = content()
+    func children(evalChildren: Bool = true) -> (attributes: DictValue, children: [AnyElement]) {
+        let previous = RendererContext.currentBuildingElement
+        RendererContext.currentBuildingElement = self    // set current el as parent dep
         let attributes = attributes()
-        
-        // Restore
-        RendererContext.currentBuildingElement = previousElement
-        
+        let children = evalChildren ? content() : self.children
+        RendererContext.currentBuildingElement = previous // restore previous
         return (attributes, children)
     }
-
-
 }
