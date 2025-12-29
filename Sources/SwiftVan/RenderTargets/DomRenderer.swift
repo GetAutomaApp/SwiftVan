@@ -8,19 +8,18 @@
 import Foundation
 import JavaScriptKit
 
-
 public class DomRenderer: Renderer {
     public typealias RefObject = JSObject
     public let root: any Element
     public var elementRefMap: [UUID: (parentId: UUID?, element: JSObject)] = [:]
-    
+
     public var previousProps: [UUID: DictValue] = [:]
-    
+
     public init(root: any Element) {
         self.root = root
         RendererContext.current = self
     }
-    
+
     public func mount() {
         print("starting initialal mount")
         let document = JSObject.global.document
@@ -31,7 +30,7 @@ public class DomRenderer: Renderer {
         print("added parent to refMap \(elementRefMap)")
         mountElement(root, parentId: appId)
     }
-    
+
     public func unmountElement(_ elementId: UUID) {
         let element = elementRefMap[elementId]
         guard let element else { return }
@@ -40,18 +39,18 @@ public class DomRenderer: Renderer {
         elementRefMap.removeValue(forKey: elementId)
         previousProps.removeValue(forKey: elementId)
     }
-    
+
     struct PropsDiff {
         var added: [String: Any]
         var changed: [String: Any]
         var removed: [String]
     }
-    
+
     func diffProps(old: DictValue, new: DictValue) -> PropsDiff {
         var added: [String: Any] = [:]
         var changed: [String: Any] = [:]
         var removed: [String] = []
-        
+
         for key in new.keys {
             let newVal = new[key]!
             if let oldVal = old[key] {
@@ -62,28 +61,27 @@ public class DomRenderer: Renderer {
                 added[key] = newVal
             }
         }
-        
+
         for key in old.keys {
             if new[key] == nil {
                 removed.append(key)
             }
         }
-        
+
         return PropsDiff(added: added, changed: changed, removed: removed)
     }
-    
+
     func areValuesEqual(_ a: Any, _ b: Any) -> Bool {
         return String(describing: a) == String(describing: b)
     }
-    
-    
+
     public func updateElement(_ element: any Element, parentId: UUID?) {
         print("updateElement \(element.name) \(element.refId)")
-        
+
         let elementRef = elementRefMap[element.refId]
         var node: JSObject
         var thisElementRef: (parentId: UUID?, element: JSObject)
-        
+
         if let existing = elementRef {
             node = existing.element
             thisElementRef = (parentId: existing.parentId ?? parentId, element: node)
@@ -93,29 +91,16 @@ public class DomRenderer: Renderer {
             node = JSObject.global.document.createElement(element.name).object!
             thisElementRef = (parentId: parentId, element: node)
         }
-        
+
         elementRefMap[element.refId] = thisElementRef
-        
-        
+
         let oldProps = previousProps[element.refId] ?? DictValue()
         let newProps = element._attributes
-        
+
         let diff = diffProps(old: oldProps, new: newProps)
-        
+        print("added: \(diff.added), removed: \(diff.removed), changed: \(diff.changed)")
+
         func applyProp(key: String, value: Any, on node: JSObject) {
-            if let convertible = value as? ConvertibleToJSValue {
-                node[key] = convertible.jsValue
-                return
-            }
-            
-            if let closure = newProps.function(key) {
-                node[key] = JSClosure { _ in
-                    closure()
-                    return .undefined
-                }.jsValue
-                return
-            }
-            
             if let dict = newProps.dictionary(key) {
                 let childNode = node[key].object!
                 for (subKey, subVal) in dict {
@@ -123,35 +108,50 @@ public class DomRenderer: Renderer {
                 }
                 return
             }
+
+            if let convertible = value as? ConvertibleToJSValue {
+                print("is convertible \(key)")
+                node[key] = convertible.jsValue
+                return
+            }
+
+            print("is function \(key)")
+            if let closure = newProps.function(key) {
+                node[key] =
+                    JSClosure { _ in
+                        closure()
+                        return .undefined
+                    }.jsValue
+                return
+            }
         }
-        
+
         for key in diff.removed {
             node[key] = JSValue.undefined
         }
-        
+
         for (key, val) in diff.added {
+            print("adding \(key): \(val)")
             applyProp(key: key, value: val, on: node)
         }
-        
+
         for (key, val) in diff.changed {
+            print("changing \(key): \(val)")
             applyProp(key: key, value: val, on: node)
         }
-        
+
         previousProps[element.refId] = newProps
-        
-        
+
         if elementRef == nil {
             let parent = elementRefMap[thisElementRef.parentId ?? UUID()]
             _ = parent?.element.appendChild!(node)
         }
-        
-        
+
         for child in element.children {
             mountElement(child, parentId: element.refId)
         }
     }
-    
-    
+
     public func mountElement(_ element: any Element, parentId: UUID) {
         updateElement(element, parentId: parentId)
     }
