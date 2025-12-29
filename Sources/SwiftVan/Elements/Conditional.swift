@@ -14,12 +14,12 @@ public class If: Element {
     public var children: [AnyElement] = []
     public var condition: () -> Bool
     public var content: () -> [AnyElement]
-    public var attributes: () -> DictValue = {[:]}
-    
+    public var attributes: () -> DictValue = { [:] }
+
     public var _attributes: DictValue = [:]
-    
+
     private var lastConditionResult: Bool? = nil
-    
+
     public init(
         _ condition: @escaping () -> Bool,
         states: [AnyState],
@@ -29,12 +29,14 @@ public class If: Element {
         print("initializing conditional")
         // TODO: edit "content" function so that when we call it it will either build UI, return existing components, or return emtpy array
         self.condition = condition
-        
+
         let result = self.condition()
         if result {
             self.content = If
+            self.children = If()
         } else {
             self.content = Else
+            self.children = Else()
         }
 
         // this causes a lag spike, figure out why
