@@ -22,9 +22,9 @@ public class If: Element {
 
     public init(
         _ condition: @escaping () -> Bool,
-        states: [AnyState],
+        states: [AnyState] = [],
         @ElementBuilder If: @escaping () -> [AnyElement],
-        @ElementBuilder Else: @escaping () -> [AnyElement],
+        @ElementBuilder Else: @escaping () -> [AnyElement] = { [] },
     ) {
         print("initializing conditional")
         // TODO: edit "content" function so that when we call it it will either build UI, return existing components, or return emtpy array
