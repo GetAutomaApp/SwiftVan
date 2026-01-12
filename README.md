@@ -648,18 +648,13 @@ From the TODO list:
 
 ## License
 
-GPL-3.0 (for template modifications)
-Projects using this framework can be closed source.
+Projects using this framework can be closed source & freely distributed without attribution.
 
 ---
 
 ## Contributing
 
-This is a template repository. Feel free to:
-- Add new elements
-- Improve the rendering system
-- Enhance state management
-- Add more examples
+Contribution Guide: [CONTRIBUTING.md](https://github.com/GetAutomaApp/.github/blob/main/CONTRIBUTING.md)
 
 ---
 
